@@ -593,3 +593,106 @@ SQL Server의 `ROWNUM`이다.
 
 ## 6절 : 함수(FUNCTION)
 
+### 1. 내장 함수(BUILT-IN FUNCTION) 개요
+
+#### 함수의 종류
+ - 벤더에서 제공한는 함수인 **내장 함수** 
+ - 사용자가 정의할 수 있는 **사용자 정의 함수(User Defined Function)**
+
+#### 내장 함수
+  - 단일행 함수(Single-Row Function) : 함수의 입력 값이 단일행 값이 입력됨
+
+  - 다중행 함수(Multi-Row Function) : 여러 행의 값이 입력됨
+
+#### 단일행 함수의 종류
+
+|종류|내용|함수의 예|
+|:---:|:---|:---|
+|문자형 함수| 문자를 입력하면 문자나 숫자 값을 반환한다 | LOWER, UPPER, SUBSTR/SUBSTRING, LENGTH/LEN, LTRIM, RTRIM, TRIM, ASCII |
+|숫자형 함수| 숫자를 입력하면 숫자 값을 반환한다 | ABS, MOD, BOUND, TRUNC, SIGN, CHR/CHAR, CEIL/CEILING, FLOOR, EXP, LOG, LN, POWER, SIN, COS, TAN |
+|날짜형 함수| DATE 타입의 값을 연산한다 | SYSDATE/GETDATE, EXTRACT/DATEPART, TO_NUMBER(TO_CHAR(d,'YYYY'\|'MM'\|'DD')) / YEAR\|MONTH\|DAY |
+|변환형 함수| 문자, 숫자, 날짜형 값의 데이터 타입을 변환한다 | TO_NUMBER, TO_CHAR, TO_DATE, / CAST, CONVERT |
+|NULL 관련 함수|NULL을 처리하기 위한 함수|NVL/ISNULL, NULLIF, COALESCE |
+
+#### 단일행 함수의 중요한 특징
+ - SELECT, WHERE, ORDER BY 절에 사용 가능하다.
+ - 가 행(Row)들에 대해 개별적으로 작용
+ - 여러 인자를 입력해도 하나의 결과만 리턴
+ - 특별한 경우가 아니면 인자에 함수를 사용하는 함수 중첩 가능
+
+---
+### 2. 문자형 함수
+
+#### 단일행 문자형 함수의 종류
+
+| 문자형 함수 | 함수 설명 |
+|:---:|:---|
+|LOWER(문자열)|문자열의 알파벳 문자를 소문자로 바꾸어 준다 |
+|UPPER(문자열)|문자열의 알파벳 문자를 대문자로 바꾸어 준다|
+|ASCII(문자)|문자나 숫자를 ASCII 코드 번호로 바꾸어 준다|
+|CHR/CHAR(ASCII번호)|ASCII코드 번호를 문자나 숫자로 바꾸어 준다|
+|CONCAT(문자열1, 문자열2)|Oracle, MySQL에서 유효한 함수, 문자열1과 문자열2를 연결한다. 합성 연산자 '\|\|'(Oracle)나 '+'(SQL Server)와 동일하다|
+|SUBSTR/SUBSTRING(문자열, m[, n])|문자열 중 m위치에서 n개의 문자 길이에 해당하는 문자를 돌려준다. n이 생략되면 마지막 문자까지이다 |
+|LENGTH/LEN(문자열)| 문자열의 개수를 숫자값으로 돌려준다.|
+|LTRIM(문자열 [, 지정문자])|문자열의 첫 문자부터 확인해서 지정문자가 나타나면 해당 문자를 제거한다. 지정문자가 생략이면 공백 값이 Default... SQL Server는 공백만 제거 가능|
+|RTRIM(문자열 [, 지정문자]) | 이건 문자열의 마지막 문자부터 |
+|TRIM([leading\|trailing\|both] 지정문자 FROM 문자열)|문자열에서 머릿말, 꼬리말, 또는 양쪽에 있는 지정 문자를 제거한다. Default=both, SQL Server는 공백만 제거 가능 |
+
+#### TIP 방출
+ - 어떤 테이블이 있는지 확인
+```sql
+SELECT *
+FROM tab;
+```
+ - DUMMY 테이블 : DUMMY라는 문자열 유형의 칼럼에 'X'라는 값이 들어있는 행을 1건 포함하고 있다.
+```sql
+SELECT LENGTH('SQL Expert')
+FROM dual;
+```
+```sql
+DESC dual;
+
+칼럼                 NULL 가능           데이터유형
+----------------   -------------    --------------
+DUMMY                                  VARCHAR2(1)
+```
+---
+### 3. 숫자형 함수
+
+#### 단일행 숫자형 함수 종류
+|숫자형 함수|함수 설명|
+|:---:|:---|
+|ABS(숫자)|숫자의 절대값을 돌려준다|
+|SIGN(숫자)|숫자가 양수인지, 음수인지 0인지를 구별한다|
+|MOD(숫자1, 숫자2)| 숫자1을 숫자2로 나누어 나머지 값을 리턴한다. MOD 함수는 % 연산자로도 대체 가능함|
+|CEIL/CEILING(숫자)|숫자보다 크거나 같은 최소 정수를 리턴|
+|FLOOR(숫자)|숫자보다 작거나 같은 최대 정수 리턴|
+|ROUND(숫자 [, m])|숫자를 소수점 m+1자리에서 반올림하여 리턴한다. m이 생략되면 Default=0|
+|TRUNC(숫자 [, m])|숫자를 소수 m+1자리에서 잘라서 버린다. m이 생략되면 Default=0, SQL Server에선 없다 |
+|SIN, COS, TAN... | 숫자의 삼각함수 값을 리턴|
+|EXP(), POWER(), SQRT(), LOG(), LN|숫자의 지수, 거듭 제곱, 제곱근, 자연 로그 값을 리턴 |
+
+---
+### 4. 날짜형 함수
+
+
+#### 단일행 날짜형 함수 종류
+Oracle 함수 / SQL Server 함수
+
+|날짜형 함수|함수 설명|
+|:---:|:---|
+|SYSDATE() / GETDATE()|현재 날짜와 시각을 출력|
+|EXTRACT('YEAR'\|'MONTH'\|'DAY' from d) / <br> DATEPART('YEAR'\|'MONTH'\|'DAY',d) | 날짜 데이터에서 년/월/일 데이터를 출력할 수 있다. 시간/분/초도 가능함|
+|TO_NUMBER(TO_CHAR(d,'YYYY')) / YEAR(d), <br> TO_NUMBER(TO_CHAR(d,'MM')) / MONTH(d), <br> TO_NUMBER(TO_CHAR(d,'DAY')) / DAY(d), <br> | 날짜 데이터에서 년/월/일 데이터를 출력할 수 있다. Oracle EXTRACT YEAR/MONTH/DAY 옵션이나 SQL Server DEPART YEAR/MONTH/DAY 옵션과 같은 기능이다. TO_NUMBER 함수 제외시 문자형으로 출력된다.|
+
+#### 단일행 날짜형 데이터 연산
+|연산|결과|설명|
+|:---:|:---:|:---|
+|날짜 + 숫자|  날짜 | 숫자만큼의 날수를 날짜에 더한다|
+|날짜 - 숫자| 날짜 | 숫자만큼의 날수를 날짜에서 뺀다|
+|날짜1 - 날짜2 | 날짜수 | 다른 하나의 날짜에서 하나의 날짜를 빼면 일수가 나온다 |
+|날짜 + 숫자/24| 날짜 | 시간을 날짜에 더한다 |
+
+---
+
+### 5. 변환형 함수
