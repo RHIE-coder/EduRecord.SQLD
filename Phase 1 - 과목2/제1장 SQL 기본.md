@@ -696,3 +696,188 @@ Oracle 함수 / SQL Server 함수
 ---
 
 ### 5. 변환형 함수
+
+#### 데이터 유형 변환의 종류
+ - 명시적(Explicit) 데이터 유형 변환
+
+데이터 변환형 함수로 데이터 유형을 변환하도록 명시해 주는 경우
+
+ - 암시적(Implicit) 데이터 유형 변환
+
+데이터베이스가 자동으로 데이터 유형을 변환하여 계산하는 경우
+
+```
+암시적 데이터 유형 변환의 경우 성능 저하가 발생할 수 있음
+자동으로 알아서 계산하지 않은 경우도 있음
+명시적 데이터 유형 변환 방법 사용이 바람직함
+```
+
+#### 단일행 변환형 함수의 종류
+| 변환형 함수 - Oracle | 함수 설명 |
+|:---:|:---|
+|TO_NUMBER(문자열) | alpanumeric 문자열을 숫자로 변환한다. |
+|TO_CHAR(숫자|날짜 [, FORMAT])|숫자나 날짜를 주어진 FORMAT 형태로 문자열 타입으로 변환한다.|
+|TO_DATE(문자열, [, FORMAT])|문자열을 주어진 FORMAT 형태로 날짜 타입으로 변환한다.|
+
+---
+
+6. CASE 표현
+
+CASE 표현은 IF-THEN-ELSE 논리와 유사한 방식으로 표현식을 작성해서 SQL의 비교 연산 기능을 보완하는 역할을 한다.
+
+```sql
+SELECT ename, CASE WHEN sal > 2000
+                   THEN sal
+                   ELSE 2000
+              END  revised_salary
+FROM emp;
+```
+*결과*
+```
+ENAME                REVISED_SALARY
+-------------------- --------------
+SMITH                          2000
+ALLEN                          2000
+WARD                           2000
+JONES                          2975
+MARTIN                         2000
+BLAKE                          2850
+CLARK                          2450
+SCOTT                          3000
+KING                           5000
+TURNER                         2000
+ADAMS                          2000
+```
+
+CASE 표현을 하기 위해서 조건절을 표현하는 2가지 방법이 있고, Oracle의 경우 DECODE 함수를 사용할 수도 있다.
+
+#### 단일행 CASE 표현의 종류
+| CASE 표현 | 함수 설명 |
+|:---|:---|
+|CASE<br>&nbsp;&nbsp;&nbsp;&nbsp;SIMPLE_CASE_EXPRESSION<br>&nbsp;&nbsp;&nbsp;&nbsp;ELSE 표현절<br>END| SIMPLE_CASE_EXPRESSION 조건이 맞으면 SIMPLE_CASE_EXPRESSION 조건내의 THEN 절을 수행하고, 조건이 맞지 않으면 ELSE 절을 수행한다.|
+|CASE<br>&nbsp;&nbsp;&nbsp;&nbsp;SEARCHED_CASE_EXPRESSION 조건<br>&nbsp;&nbsp;&nbsp;&nbsp;ELSE 표현절<br>END|SEARCHED_CASE_EXPRESSION 조건이 맞으면 SEARCHED_CASE_EXPRESSION 조건내의 THEN 절을 수행하고, 조건이 맞지 않으면 ELSE 절을 수행한다. |
+|DECODE(표현식, 기준값1, 값1 [, 기준값2, 값2,...,디폴트값])|Oracle에서만 사용되는 함수로, 표현식의 값이 기준값1이면 값1을 출력하고, 기준값2이면 값2를 출력한다. 그리고 기준값이 없으면 디폴트 값을 출력한다. CASE 표현의 SIMPLE_CASE_EXPRESSION 조건과 동일하다.|
+
+ - EQUI(=) 조건만 사용한다면 `SIMPLE_CASE_EXPRESSION`이 더 간단하다.
+```sql
+SELECT loc, CASE LOWER(loc)
+            WHEN 'new york' THEN 'east'
+            WHEN 'boston'   THEN 'east'
+            WHEN 'chicago'  THEN 'center'
+            WHEN 'dallas'   THEN 'center'
+            ELSE 'etc'
+            END area
+FROM dept;
+```
+*결과*
+```
+LOC                        AREA
+-------------------------- ------------
+NEW YORK                   east
+DALLAS                     center
+CHICAGO                    center
+BOSTON                     east
+```
+ - 두번째로 `SEARCHED_CASE_EXPRESSION`은 CASE 다음에 칼럼이나 표현식을 표시하지 않고 다음 `WHEN절`에서 여러 조건을 이용해 다양한 조건을 적용할 수 있다.
+
+```sql
+SELECT ename, CASE WHEN sal >= 3000 THEN 'HIGH'
+                   WHEN sal >= 1000 THeN 'MID'
+                   ELSE 'LOW'
+              END  AS   salary_grade
+FROM emp;
+```
+`AS`는 생략해도 된다.
+
+*결과*
+```
+ENAME                SALARY_GRADE
+-------------------- --------
+SMITH                LOW
+ALLEN                MID
+WARD                 MID
+JONES                MID
+MARTIN               MID
+BLAKE                MID
+CLARK                MID
+SCOTT                HIGH
+KING                 HIGH
+TURNER               MID
+ADAMS                MID
+```
+
+---
+
+### 7. NULL 관련 함수
+ - NOT NULL, PRIMARY KEY 제약조건을 제외한 모든 데이터 유형은 NULL 값을 포함할 수 있고, NULL은 공백도 숫자도 아니다. 0은 숫자고 공백은 하나의 문자이다.
+ - 그러므로 NULL을 다룰 때는 NULL 관련 함수를 이용해야 한다.
+
+아무 데이터가 없으면 0으로 취급하고 산술계산을 하고 싶은 경우
+```sql
+SELECT NULL+3 FROM dual;
+```
+*결과*
+```
+(null)
+```
+3을 기대했지만 결과는 (null)이다. 
+
+#### 단일행 NULL 관련 함수의 종류
+
+`Oracle / SQL Server`
+
+| 일반형 함수 | 함수 설명 |
+|:---|:---|
+|NVL(표현식1, 표현식2) / ISNULL(표현식1, 표현식2)| 표현식1의 결과값이 NULL이면 표현식2의 값으로 출력한다. 단, 표현식1과 표현식2의 결과 데이터 타입이 같아야 한다.|
+|NULLIF(표현식1,표현식2)| IF 표현식1 == 표현식2 <br>THEN return null<br>ELSE return 표현식1|
+|COALESCE(표현식1, 표현식2, ...) | 임의의 개수 표현식에서 NULL 아닌 최초의 표현식을 나타낸다. 모든 표현식이 NULL이라면 NULL을 리턴한다.|
+
+ - NVL(표현식1, 표현식2)
+
+```sql
+SELECT NVL(NULL, 'NVL-OK') NVL_TEST
+FROM DUAL;
+```
+*결과*
+```
+NVL_TEST
+------------
+NVL-OK
+```
+아래와 같이 CASE 문으로도 표현할 수 있다.
+```sql
+SELECT ename, CASE  WHEN comm IS NULL
+                    THEN '없음'
+                    ELSE comm
+              END AS comm
+FROM emp;
+```
+*결과*
+```
+ORA-00932: 일관성 없는 데이터 유형: CHAR이(가) 필요하지만 NUMBER임
+00932. 00000 -  "inconsistent datatypes: expected %s got %s"
+*Cause:    
+*Action:
+3행, 29열에서 오류 발생
+```
+에러가 난 이유는 comm는 `NUMBER` 타입인데 THEN을 보면 `'없음'`이란 문자를 입력해서 그렇다. 타입이 일치하지 않다는 것이다.
+
+```sql
+SELECT ename, CASE  WHEN comm IS NULL
+                    THEN 0
+                    ELSE comm
+              END AS comm
+FROM emp;
+```
+이제 정상적으로 결과가 나온다.
+ - NULL과 다른 개념인 공집합
+
+조건에 맞는 데이터가 한 건도 없을 때
+```sql
+SELECT *
+FROM emp
+WHERE 1 = 2;
+```
+ - COALESCE()
+
+인수의 숫자가 한정되어 있지 않으며, NULL이 아닌 최초의 EXPR을 나타낸다. 만일 모든 값이 NULL이라면 NULL을 리턴한다. `중첩CASE문`으로 표현할 수도 있다.
