@@ -806,6 +806,36 @@ TURNER               MID
 ADAMS                MID
 ```
 
+ - DECODE 활용 사례
+```sql
+SELECT empno, ename, 
+       DECODE(deptno, 
+              10, 'Accounting Department', 
+              20, 'Research Department',
+              30, 'Sales Department',
+              40, 'Operations Department') dept
+FROM emp;
+```
+*결과*
+```
+     EMPNO ENAME                DEPT
+---------- -------------------- ------------------------------------------
+      7369 SMITH                Research Department
+      7499 ALLEN                Sales Department
+      7521 WARD                 Sales Department
+      7566 JONES                Research Department
+      7654 MARTIN               Sales Department
+      7698 BLAKE                Sales Department
+      7782 CLARK                Accounting Department
+      7788 SCOTT                Research Department
+      7839 KING                 Accounting Department
+      7844 TURNER               Sales Department
+      7876 ADAMS                Research Department
+      7900 JAMES                Sales Department
+      7902 FORD                 Research Department
+      7934 MILLER               Accounting Department
+```
+
 ---
 
 ### 7. NULL 관련 함수
