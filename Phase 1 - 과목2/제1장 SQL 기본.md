@@ -721,7 +721,7 @@ Oracle 함수 / SQL Server 함수
 
 ---
 
-6. CASE 표현
+### 6. CASE 표현
 
 CASE 표현은 IF-THEN-ELSE 논리와 유사한 방식으로 표현식을 작성해서 SQL의 비교 연산 기능을 보완하는 역할을 한다.
 
