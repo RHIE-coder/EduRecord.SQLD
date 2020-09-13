@@ -3,7 +3,7 @@
 ## 1. 서버(Listener)
 ### 리스너 시작
 ```
-lsnrctl startup
+lsnrctl start
 ```
 ### 리스너 중지
 ```

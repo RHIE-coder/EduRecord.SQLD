@@ -716,7 +716,7 @@ Oracle 함수 / SQL Server 함수
 | 변환형 함수 - Oracle | 함수 설명 |
 |:---:|:---|
 |TO_NUMBER(문자열) | alpanumeric 문자열을 숫자로 변환한다. |
-|TO_CHAR(숫자|날짜 [, FORMAT])|숫자나 날짜를 주어진 FORMAT 형태로 문자열 타입으로 변환한다.|
+|TO_CHAR(숫자\|날짜 [, FORMAT])|숫자나 날짜를 주어진 FORMAT 형태로 문자열 타입으로 변환한다.|
 |TO_DATE(문자열, [, FORMAT])|문자열을 주어진 FORMAT 형태로 날짜 타입으로 변환한다.|
 
 ---
@@ -881,3 +881,395 @@ WHERE 1 = 2;
  - COALESCE()
 
 인수의 숫자가 한정되어 있지 않으며, NULL이 아닌 최초의 EXPR을 나타낸다. 만일 모든 값이 NULL이라면 NULL을 리턴한다. `중첩CASE문`으로 표현할 수도 있다.
+
+---
+## 7절 : GROUP BY, HAVING 절
+
+### 1. 집계 함수(Aggregate Function)
+
+#### 집계 함수의 종류
+
+| 집계 함수 | 사용 목적 | 
+|:---|:---|
+|COUNT(*)|NULL 값을 포함한 행의 수를 출력한다.|
+|COUNT(표현식)|표현식의 값이 NULL 값인 것을 제외한 행의 수를 출력한다.|
+|SUM([DISTINCT \| ALL] 표현식)|표현식의 NULL 값을 제외한 합계를 출력한다.|
+|AVG([DISTINCT \| ALL] 표현식)|표현식의 NULL 값을 제외한 평균을 출력한다.|
+|MAX([DISTINCT \| ALL] 표현식)| 표현식의 최대값을 출력한다.(문자, 날짜 데이터 타입도 사용가능)|
+|MIN([DISTINCT \| ALL] 표현식)| 표현식의 최소값을 출력한다.(문자, 날짜, 데이터 타입도 사용가능)|
+|STDDEV([DISTINCT \| ALL] 표현식)| 표현식의 표준 편차를 출력한다. |
+|VARIAN([DISTINCT \| ALL] 표현식)| 표현식의 분산을 출력한다. |
+
+---
+
+### 2. GROUP BY 절
+
+```sql
+SELECT [DISTINCT] 칼럼명 [ALIAS명]
+FROM 테이블
+[WHERE 조건식]
+[GROUP BY 칼럼(Column)이나 표현식]
+[HAVING 그룹조건식];
+```
+ - GROUP BY절을 통해 소그릅별 기준을 정한 후, SELECT절 집계 함수를 사용한다.
+ - 집계 함수의 통계 정보는 NULL 값을 가진 행을 제외하고 수행한다.
+ - GROUP BY 절에서는 SELECT 결과는 달리 ALIAS 명을 사용할 수 없다.
+ - 집계 함수는 WHERE 절에는 올 수 없다.<br>
+ (집계 함수를 사용할 수 있는 GROUP BY 절보다 WHERE 절이 먼저 수행된다.)
+ - WHERE 절은 전체 데이터를 GROUP으로 나누기 전에 행들을 미리 제거시킨다.'
+ - HAVING 절은 GROUP BY 절의 기준 항목이나 소그룹의 집계 함수를 이용한 조건을 표시할 수 있다.
+ - GROUP BY 절에 의한 소그룹별로 만들어진 집계 데이터 중, HAVING 절에서 제한 조건을 두어 조건을 만족하는 내용만 출력한다.
+ - HAVING 절은 일반적으로 GROUP BY 절 뒤에 위치한다.
+
+```sql
+SELECT job, AVG(sal), COUNT(*)
+FROM emp
+WHERE deptno = 30
+GROUP BY job;
+```
+
+ - 아래 두 SQL문의 결과는 같다.
+```sql
+SELECT DISTINCT job
+FROM emp;
+```
+```sql
+SELECT job 
+FROM emp
+GROUP BY job;
+```
+
+---
+
+### 3. HAVING 절
+
+ - WHERE 절은 집계 함수가 허용되지 않는다.
+```sql
+SELECT *
+FROM emp
+WHERE AVG(sal) >= 1000;
+```
+*결과*
+```
+ORA-00934: 그룹 함수는 허가되지 않습니다
+00934. 00000 -  "group function is not allowed here"
+*Cause:    
+*Action:
+5행, 7열에서 오류 발생
+```
+ 1. WHERE절은 FROM 절에 정의된 집합(주로 테이블)의 개별 행에 WHERE 절의 조건 절이 먼저 적용
+
+ 2. WHERE 절의 조건에 맞는 행이 GROUP BY 절의 대상
+
+ 3. 그런 다음 결과 집합의 행에 HAVING 조건절이 적용. 결과적으로는 HAVING 조건을 만족하는 내용만 출력됨
+
+ - HAVING절은 WHERE절과 비슷하지만 그룹을 나타내는 결과 집합의 행에 조건이 적용이 된다.
+
+```sql
+SELECT job, AVG(sal), COUNT(*)
+FROM emp
+WHERE deptno = 30
+GROUP BY job
+HAVING AVG(sal) > 1000;
+
+or
+
+SELECT job, AVG(sal), COUNT(*)
+FROM emp
+WHERE deptno = 30
+GROUP BY job
+HAVING job='SALEMAN';
+```
+
+#### 날짜 다루기 TIP
+```sql
+TO_CHAR(hiredate, 'YYYY/MM/DD HH24:MI:SS')
+```
+
+---
+
+### 4. CASE 표현을 활용한 월별 데이터 집계
+
+ - STEP 1. 개별 데이터 확인
+```sql
+SELECT *
+FROM emp;
+```
+ - STEP 2. 월별 데이터 구분
+
+```sql
+SELECT ename, deptno,
+    CASE TO_NUMBER(TO_CHAR(hiredate, 'MM')) WHEN 01 THEN sal END M01,
+    CASE TO_NUMBER(TO_CHAR(hiredate, 'MM')) WHEN 02 THEN sal END M02,
+    CASE TO_NUMBER(TO_CHAR(hiredate, 'MM')) WHEN 03 THEN sal END M03,
+    CASE TO_NUMBER(TO_CHAR(hiredate, 'MM')) WHEN 04 THEN sal END M04,
+    CASE TO_NUMBER(TO_CHAR(hiredate, 'MM')) WHEN 05 THEN sal END M05,
+    CASE TO_NUMBER(TO_CHAR(hiredate, 'MM')) WHEN 06 THEN sal END M06,
+    CASE TO_NUMBER(TO_CHAR(hiredate, 'MM')) WHEN 07 THEN sal END M07,
+    CASE TO_NUMBER(TO_CHAR(hiredate, 'MM')) WHEN 08 THEN sal END M08,
+    CASE TO_NUMBER(TO_CHAR(hiredate, 'MM')) WHEN 09 THEN sal END M09,
+    CASE TO_NUMBER(TO_CHAR(hiredate, 'MM')) WHEN 10 THEN sal END M10,
+    CASE TO_NUMBER(TO_CHAR(hiredate, 'MM')) WHEN 11 THEN sal END M11,
+    CASE TO_NUMBER(TO_CHAR(hiredate, 'MM')) WHEN 12 THEN sal END M12
+FROM emp;
+```
+`EXTRACT()` 함수와 인라인 뷰를 이용하여 특정 날짜 형식을 뽑아와 간단히 시켜보자
+```sql
+SELECT ename, deptno,
+    CASE month WHEN 01 THEN sal END M01,
+    CASE month WHEN 02 THEN sal END M02,
+    CASE month WHEN 03 THEN sal END M03,
+    CASE month WHEN 04 THEN sal END M04,
+    CASE month WHEN 05 THEN sal END M05,
+    CASE month WHEN 06 THEN sal END M06,
+    CASE month WHEN 07 THEN sal END M07,
+    CASE month WHEN 08 THEN sal END M08,
+    CASE month WHEN 09 THEN sal END M09,
+    CASE month WHEN 10 THEN sal END M10,
+    CASE month WHEN 11 THEN sal END M11,
+    CASE month WHEN 12 THEN sal END M12
+FROM (SELECT ename, deptno, EXTRACT(MONTH FROM hiredate) AS month, sal
+      FROM emp);
+```
+- STEP 3. 부서별 데이터 집계
+
+최종적으로 보여주는 리포트는 부서별로 원별 입사자의 평균 급여를 알고싶다는 요구사항
+
+
+```sql
+SELECT deptno,
+    AVG(CASE month WHEN 01 THEN sal END) M01,
+    AVG(CASE month WHEN 02 THEN sal END) M02,
+    AVG(CASE month WHEN 03 THEN sal END) M03,
+    AVG(CASE month WHEN 04 THEN sal END) M04,
+    AVG(CASE month WHEN 05 THEN sal END) M05,
+    AVG(CASE month WHEN 06 THEN sal END) M06,
+    AVG(CASE month WHEN 07 THEN sal END) M07,
+    AVG(CASE month WHEN 08 THEN sal END) M08,
+    AVG(CASE month WHEN 09 THEN sal END) M09,
+    AVG(CASE month WHEN 10 THEN sal END) M10,
+    AVG(CASE month WHEN 11 THEN sal END) M11,
+    AVG(CASE month WHEN 12 THEN sal END) M12
+FROM (SELECT ename, deptno, EXTRACT(MONTH FROM hiredate) AS month, sal
+      FROM emp)
+GROUP BY deptno;
+```
+---
+
+## 8절 : ORDER BY 절
+
+### 1. ORDER BY 정렬
+
+SQL 문장으로 조회된 데이터들을 특정 칼럼을 기준으로 정렬하여 출력하는데 사용
+
+Default는 오름차순, SQL문장의 마지막에 위치한다.
+
+```sql
+SELECT 칼럼명 [ALIAS명]
+FROM 테이블명
+[WHERE 조건식]
+[GROUP BY 그룹조건식]
+[HAVING 그룹조건식]
+[ORDER BY 칼럼(Column)이나 표현식 [ASC or DESC]];
+
+    ASC(Ascending) : 오름차순 정렬
+    DESC(Descending) : 내림차순 정렬
+```
+
+```sql
+SELECT *
+FROM emp
+ORDER BY deptno, sal DESC;
+```
+
+ - Oracle은 NULL 값을 가장 큰 값으로 취급한다.
+ - ORDER BY 컬럼의 순서에 따라 결과 값이 다르게 출력된다.
+
+```sql
+SELECT empno, ename, job, mgr, hiredate, sal, NVL(comm, 0), deptno
+FROM emp
+ORDER BY 1;
+
+or
+
+SELECT empno AS 사번, ename, job, mgr, hiredate, sal, NVL(comm, 0), deptno
+FROM emp
+ORDER BY 사번;
+```
+ - 위와 같이 칼럼 순서를 매핑하여 사용할 수 있다.
+ - alias 명을 사용할 수도 있다.
+ - 유지보수성과 가독성을 위해 ORDER BY 할 때, 칼럼명이나 ALIAS를 사용하길 권고한다.
+---
+
+### 2. SELECT 문장 실행 순서
+
+```
+5. SELECT 칼럼명 [ALIAS명]
+1. FROM 테이블명
+2. WHERE 조건식
+3. GROUP BY 칼럼(Column)이나 표현식
+4. HAVING 그룹조건식
+6. ORDER BY 칼럼(Column) 이나 표현식;
+```
+1. 발췌 대상 테이블을 참조한다.
+2. 발췌 대상 데이터가 아닌 것은 제거한다.
+3. 핸들을 소그룹화 한다.
+4. 그룹핑된 값의 조건에 맞는 것만을 출력한다.
+5. 데이터 값을 출력/계산한다.
+6. 데이터를 정렬한다.
+
+#### 알아두면 좋은 상식!
+
+ 관계형 데이터베이스가 데이터를 메모리에 올릴 때 행 단위로 모든 칼럼을 가져오게 되므로, SELECT 절에서 일부 칼럼만 선택하더라도 ORDER BY 절에서 메모리에 올라와 있는 다른 칼럼의 데이터를 사용할 수 있다.
+```sql
+SELECT empno, ename, mgr
+FROM emp
+ORDER BY sal;
+```
+ *단, 서브쿼리의 SELECT 절에서 선택되지 않은 칼럼들은 계속 유지되는 것이 아니라 서브쿼리 범위를 벗어나면 덩 이상 사용할 수 없게 된다.(인라인 뷰도 포함)*
+
+ *마찬가지로 GROUP BY 절에서 그룹핑 기준을 정의하게 되면 데이터베이스는 일반적인 SELECT 문장처럼 FROM 절에 정의된 테이블의 구조를 그대로 가지고 가는 것이 아니라, GROUP BY 절의 그룹핑 기준에 사용된 칼럼과 집계 함수에 사용될 수 있는 숫자형 데이터 칼럼들의 집합을 새로 만든다.*
+
+---
+
+### 3. Top N 쿼리
+
+Oracle에서 순위가 높은 N개의 로우를 추출하기 위해 ORDER BY절과 WHERE절의 ROWNUM 조건을 같이 사용하는 경우가 있는데 이 두 조건으로는 원하는 결과를 얻을 수 없다. Oracle의 경우 정렬이 완료된 후 데이터의 일부가 출력되는 것이 아니라, 데이터의 일부가 먼저 추출된 후(ORDER BY 절은 집합을 결정하는데 관여하지 않음)데이터에 대한 정렬 작업이 일어나므로 주의해야 한다.
+
+```sql
+SELECT ROWNUM, ename, sal
+FROM emp
+ORDER BY sal DESC;
+```
+*결과*
+```
+    ROWNUM ENAME                       SAL
+---------- -------------------- ----------
+         9 KING                       5000
+        13 FORD                       3000
+         8 SCOTT                      3000
+         4 JONES                      2975
+         6 BLAKE                      2850
+         7 CLARK                      2450
+         2 ALLEN                      1600
+        10 TURNER                     1500
+        14 MILLER                     1300
+         3 WARD                       1250
+         5 MARTIN                     1250
+        11 ADAMS                      1100
+        12 JAMES                       950
+         1 SMITH                       800
+```
+ - `WHERE ROWNUM < 4`를 한다면
+```sql
+SELECT ROWNUM, ename, sal
+FROM emp
+WHERE ROWNUM < 4;
+```
+*결과*
+```
+    ROWNUM ENAME                       SAL
+---------- -------------------- ----------
+         1 SMITH                       800
+         2 ALLEN                      1600
+         3 WARD                       1250
+```
+즉, 다음 SQL문은 급여 상위 3명을 출력한 것이 아니라 무작위로(?) 추출된 3명에 한해서 급여를 내림차순으로 정렬한 결과이다.
+```sql
+SELECT ename, sal
+FROM emp
+WHERE ROWNUM < 4
+ORDER BY sal DESC;
+```
+ - 그러므로, 인라인 뷰를 사용해야 한다.
+```sql
+SELECT ename, sal
+FROM (SELECT ename, sal
+      FROM emp
+      ORDER BY sal DESC)
+WHERE ROWNUM < 4;
+```
+---
+
+## 9절 : 조인(JOIN)
+
+### 1. JOIN 개요
+
+지금까지는 하나의 테이블에서 데이터를 출력하는 것을 살펴보았다. 그러나 다른 정보가 들어있는 2개 이상의 테이블과 연결 또는 결합하여 데이터를 출력하는 경우가 아주 많이 발생한다.
+
+일반적인 경우는 PK와 FK 값 연관에 의해 JOIN이 성립되지만, 어떤 경우에는 PK, FK 관계 없이도 논리적인 ㄱ밧들의 연관만으로 JOIN이 성립 가능하다.
+
+주의할 점은 여러 테이블이 나열되더라도 SQL에서 데이터를 처리할 때는 단 2개의 집합 간에만 JOIN이 일어난다.
+
+EXAMPLE : 테이블 A, B, C, D
+```
+(((A JOIN D) JOIN C) JOIN B)
+```
+
+---
+
+### 2. EQUI JOIN
+
+`=` 연산자를 사용해서 표현한다.
+ - WHERE절 사용
+```sql
+SELECT 테이블1.칼럼명, 테이블2.칼럼명, ...
+FROM 테이블1, 테이블2
+WHERE 테이블1.칼럼명 = 테이블2.칼럼명2;
+--> WHERE 절에 JOIN 조건을 넣는다. 
+```
+```sql
+SELECT *
+FROM emp, dept
+WHERE emp.deptno = dept.deptno;
+```
+ - INNER JOIN 사용
+```sql
+SELECT 테이블1.칼럼명, 테이블2.칼럼명, ...
+FROM 테이블1 INNER JOIN 테이블 2
+ON 테이블1.칼럼명1 = 테이블2.칼럼명;
+--> ON절에 JOIN 조건을 넣는다.
+```
+```sql
+SELECT e.empno, e.ename, e.job, d.deptno, d.dname, d.loc
+FROM emp e, dept d
+WHERE e.deptno = d.deptno;
+```
+조인 조건에 맞는 데이터만 출력하는 INNER JOIN에 참여하는 대상 테이블이 N개라고 했을 때, N개의 테이블로부터 필요한 데이터를 조회하기 위해 필요한 JOIN 조건은 대상 테이블의 개수에서 하나를 뺀 N-1개 이상이 필요하다.
+
+즉, FROM 절에 테이블이 3개가 표시되어 있다면 JOIN 조건은 2개가 필요하다.
+
+```sql
+SELECT *
+FROM employees e, departments d, locations l
+WHERE e.department_id = d.department_id
+AND d.location_id = l.location_id;
+
+or
+
+SELECT *
+FROM employees e 
+INNER JOIN departments d
+ON e.department_id = d.department_id
+INNER JOIN locations l
+ON d.location_id = l.location_id;
+```
+
+테이블에 ALIAS를 부여했다면 본 테이블 명이아니라 ALIAS를 사용해야 한다.
+
+---
+
+### 3. Non EQUI JOIN
+
+2개의 테이블 간에 칼럼 값들이 서로 정확하게 일치하지 않은 경우에 사용
+```sql
+SELECT *
+FROM emp, salgrade
+WHERE emp.sal BETWEEN salgrade.losal AND salgrade.hisal;
+```
+
+ - 데이터 하우스 모델처럼 하나의 테이블에 모든 데이터를 집중시켜놓고 그 테이블로부터 필요한 데이터를 조회할 수도 있다. 그러나 이렇게 됐을경우, 성능 측면에서도 간단한 데이터를 조회하는 경우에도 규모가 큰 테이블에서 필요한 데이터를 찾아야 하기 때문에 오히려 검색 속도가 떨어질 수 있다.
+
+- 데이블을 정규화하여 데이터를 분할하면 문제가 해결되지만, 고나계형 데이터베이스의 큰 장점이면서, SQL 튜닝의 중요 대상이 되는 JOIN을 잘못 기술하게 되면 시스템 자원 부족이나 과다한 응답시간 지연을 발생시키는 중요 원인이 되므로 JOIN 조건은 신중하게 작성해야 한다.
+
+---
