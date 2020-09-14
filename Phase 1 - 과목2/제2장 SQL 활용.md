@@ -111,18 +111,95 @@ USING (deptno);
 ---
 
 ### 6. ON 조건절
+JOIN 서술부(ON 조건절)와 비 JOIN 서술부(WHERE 조건절)를 분리하여 이해가 쉬우며, 칼럼명이 다르더라도 JOIN 조건을 사용할 수 있는 장점이 있다.
+
+```sql
+SELECT e.empno, e.ename, e.deptno, d.dname
+FROM emp e JOIN dept d
+ON (e.deptno = d.deptno)
+```
+ - 괄호는 옵션사항이다.
+ - ON 조건절에 JOIN 조건 외에도 데이터 검색 조건을 추가할 수는 있으나 검색 조건 목적인 경우는 WHERE 절을 사용할 것을 권고한다.(다만, 아우터 조인에서 조인의 대상을 제한하기 위한 목적으로 사용되는 추가 조건의 경우는 ON 절에 표기되어야 한다.)
+
+```sql
+SELECT e.ename, e.mgr, d.deptno, d.dname
+FROM emp e JOIN dept d
+ON (e.deptno = d.deptno
+    AND e.mgr = 7698);
+```
+or
+```sql
+SELECT e.ename, e.mgr, d.deptno, d.dname
+FROM emp e JOIN dept d
+ON (e.deptno = d.deptno)
+WHERE e.mgr = 7698;
+```
 
 ---
 
 ### 7. CROSS JOIN
+E.F.CODD 박사가 언급한 일반 집합 연산자의 PRODUCT의 개념으로 JOIN 조건이 없는 경우 생길 수 있는 모든 데이터 조합을 말한다.
+```sql
+SELECT ename, dname
+FROM emp CROSS JOIN dept
+ORDER By ename;
+```
+ - NATURAL JOIN의 경우 WHERE 절에서 JOIN 조건을 추가할 수 없지만, CROSS JOIN의 경우 WHERE 절에 JOIN 조건을 추가할 수 있다. 그러나 INNER JOIN과 같은 결과를 얻기 때문에 구지 CROSS JOIN을 사용하기는....
 
 ---
 
 ### 8. OUTER JOIN
+ - JOIN 조건에서 동일한 값이 없는 행도 반환할 때 사용할 수 있다. 즉, `tab1`과 `tab2`를 JOIN할 때 `tab2`의 JOIN 데이터가 없는 경우에도 `tab1`의 모든 데이터를 표시하고 싶을 수 있다.
+
+ - 과거 OUTER JOIN을 위해 Oracle은 JOIN 칼럼 뒤에 '(+)'를 표시하였고, Sybase는 비교 연산자의 앞이나 뒤에 '(+)'를 표기했었는데, JOIN조건과 WHERE 절 검색 조건이 불명확한 단점, IN이나 OR 연산자 사용시 에러 발생. '(+)'표시가 누락된 칼럼 존재시 OUTER JOIN 오류 발생, FULL OUTER JOIN 미지원 등 불편함이 많았다.
+
+ - OUTER JOIN 역시 JOIN 조건을 FROM 절에서 정의하겠다는 표시이므로 USING 조건절이나 ON 조건절을 필수적으로 사용해야 한다. 그리고 LEFT/RIGHT OUTER JOIN의 경우에는 기준이 되는 테이블이 조인 수행시 무조건 드라이빙 테이블이 된다. 
+
+#### LEFT OUTER JOIN
+ - JOIN 수행시 먼저 표기된 좌측 테이블에 해당하는 데이터를 먼저 읽은 후, 나중 표기도니 우측 테이블에서 JOIN 대상 데이터를 읽어 온다. 즉, A테이블, B테이블이 있을 때 A와 B를 비교했을 때 JOIN 칼럼에서 같은 값이 있을 때 그 해당 데이터를 가져오고 없으면 NULL로 채운다.
+
+```sql
+SELECT *
+FROM emp LEFT OUTER JOIN dept
+ON emp.deptno = dept.deptno;
+```
+ - OUTER 키워드 생략 가능
+
+#### RIGHT OUTER JOIN
+```sql
+SELECT *
+FROM emp RIGHT OUTER JOIN dept
+ON emp.deptno = dept.deptno;
+```
+ - OUTER 키워드 생략 가능
+
+#### FULL OUTER JOIN
+ - LEFT OUTER JOIN과 RIGHT OUTER JOIN의 합집합. 단 UNION ALL이 아닌 UNION 기능과 같아서 중복되는 데이터 삭제
+ - JOIN 수행시 좌측, 우측 테이블의 모든 데이터를 읽어 JOIN 하여 결과를 생성한다. 즉 A테이블, B테이블이 있을 때 둘다 기준이 된다는 것이다.
+
+ ```sql
+SELECT *
+FROM employees e FULL OUTER JOIN departments d
+ON e.department_id = d.department_id;
+ ```
+
+or
+
+```sql
+SELECT *
+FROM employees e LEFT OUTER JOIN departments d
+ON e.department_id = d.department_id;
+UNION
+SELECT *
+FROM employees e RIGHT OUTER JOIN departments d
+ON e.department_id = d.department_id;
+```
+ - OUTER 키워드 생략 가능
 
 ---
 
 ### 9. INNER vs OUTER vs CROSS JOIN 비교
+![사진](../mdsrc/Phase1/과목2-2.1.jpg)
 
 ---
 
