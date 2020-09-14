@@ -104,6 +104,9 @@ SELECT *
 FROM emp JOIN dept
 USING (deptno);
 ```
+ - NATURAL JOIN과 마찬가지로 JOIN 칼럼에 대해서는 ALIAS나 테이블 이름과 같은 접두사를 붙일 수 없다.
+
+ - Natural처럼 출력시 와일드카드(*)를 사용하면 공통된 칼럼이 맨앞에 위치하게 된다.
 
 ---
 
