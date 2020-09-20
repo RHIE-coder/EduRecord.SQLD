@@ -205,4 +205,188 @@ ON e.department_id = d.department_id;
 
 ## 2절 : 집합 연산자(SET OPERATOR)
 
+ - 두 개 이상의 테이블에서 조인을 사용하지 않고 연관된 데이터를 조회하는 방법 중에서 또 따른 방버
+ - 2개 이상의 질의 결과를 하나의 결과로 만들어 준다.
+ - SELECT 절의 칼럼수가 동일하고, SELECT 절의 동일 위치에 존재하는 칼럼의 데이터 타입이 상호 호환 가능해야 한다. 여기서 반드시 동일한 데이터 타입일 필요는 없다.
+
+#### 집합 연산자의 종류
+
+| 집합 연산자 | 연산자의 의미 |
+|:---:|:---|
+|UNION|여려개의 SQL문의 결과에 대한 합집합으로 결과에서 모든 중복된 행은 하나의 행으로 만든다.|
+|UNION ALL | 중복된 행도 그대로 결과로 표시된다. 합집합|
+|INTERSECT | 여러 개의 SQL 문의 결과에 대한 교집합. 중복된 행은 하나의 행으로 만든다.|
+|EXCEPT| 앞의 SQL문의 결과에서 뒤의 SQL문의 결과에 대한 차집합. 중복된 행은 하나의 행으로 만든다.|
+
+
+---
+
+## 3절 : 계층형 질의와 셀프조인
+
+### 1. 계층형 질의
+
+예를 들면 [사원 테이블]에서는 사원들 사이에 선임과 후임이 나뉘고 각 후임에겐 담당 선임이 배정되어 있을 것이다.
+
+Oracle은 계층형 질의를 지원하기 위해 아래와 같이 제공
+```sql
+SELECT ...
+FROM 테이블
+WHERE 조건 AND 조건 ...
+START WITH condition
+CONNECT BY [NOCYCLE] 조건 AND 조건
+[ORDER SIBLINGS BY 컬럼, 컬럼...]
+```
+ - START WITH 절은 계층 구조 전개의 시작 위치를 지정하는 구문이다. 루트 데이터를 지정한다.
+ - CONNECT BY 절은 다음에 전개될 자식 데이터를 지정하는 구문이다. 자식 데이터는 CONNECT BY절에 주어진 조건을 만족해야 한다.
+ - PRIOR : CONNECT BY 절에 사용되며, 현재 읽은 칼럼을 지정한다. PRIOR 자식 = 부모 형태를 사용하면 계층구조에서 부모 데이터에서 자식 데이터(부모-->자식) 방향으로 순방향으로 전개한다. PRIOR 부모 = 자식 형태라면 반대로 역방향 전개를 한다.
+ - NOCYCLE : 데이터를 전개하면서 이미 나타났던 동일한 데이터가 전개중에 다시 나타난다면 이것을 CYCLE이 형성되었다고 하는데 이 떄는 RUNTIME 에러가 난다. NOCYCLE를 추가하면 사이클이 발생한 이후의 데이터는 전개하지 않는다.
+ - ORDER SIBLINGS BY : 형제 노드(동일 LEVEL) 사이에 정렬을 수행한다.
+ - WHERE : 모든 전개를 수행한 후에 지정 조건을 만족하는 데이터만 추출
+
+#### 계층형 질의에서 사용되는 가상 칼럼
+| 가상 칼럼 | 설명 |
+|:---:|:---|
+| LEVEL | 루트 데이터면 1, 그 하위 데이터면 2이다. 리프(Leaf)데이터까지 1씩 증가한다.|
+| CONNECT_BY_ISLEAF | 전개 과정에서 해당 데이터가 리프 데이터면 1, 그렇지 않으면 0이다.|
+| CONNECT_BY_ISCYCLE | 전개 과정에서 자식을 갖는데, 해당 데이터가 조상으로 존재하면 1, 그렇지 않으면 0이다. CYCLE 옵션을 사용했을 때만 사용할 수 있다.|
+ - 순방향
+```sql
+SELECT LEVEL, LPAD(empno, 4 * (LEVEL), ' '), ename, job, mgr,
+       CONNECT_BY_ISLEAF
+FROM emp
+START WITH mgr IS NULL
+CONNECT BY PRIOR empno=mgr;
+```
+ - 역방향
+```sql
+SELECT LEVEL, LPAD(empno, 4 * (LEVEL), ' '), ename, job, mgr,
+       CONNECT_BY_ISLEAF
+FROM emp
+START WITH mgr = 7788
+CONNECT BY PRIOR mgr=empno;
+```
+
+### 2. 셀프 조인
+
+셀프 조인(Self Join)이란 동일 테이블 사이의 조인을 말한다. 테이블과 칼럼 이름이 모두 동일하기 때문에 반드시 ALIAS를 사용해야 한다.
+
+```sql
+SELECT ALIAS1명.칼러명, ALIAS2명.칼럼명 ...
+FROM 테이블 ALIAS1, 테이블 ALIAS2
+WHERE ALIAS1.칼럼명 = ALIAS2.칼럼명;
+```
+ - 예시
+```sql
+SELECT manager.empno "매니저사번", manager.ename "매니저이름",
+       worker.empno "그의 부하 사번", worker.ename "그의 부하 이름"
+FROM emp worker, emp manager
+WHERE worker.mgr = manager.empno;
+```
+
+---
+
+## 4절 : 서브쿼리(Subquery)
+서브쿼리(Subquery)란 하나의 SQL문안에 포함되어 있는 또다른 SQL문을 말한다.
+ 
+서브쿼리는 메인쿼리의 칼럼을 사용할 수 있지만 메인쿼리는 서브쿼리의 칼럼을 사용할 수 없다.
+
+#### 서브 쿼리가 SQL문에서 사용이 가능한 곳
+ ✅ SELECT 절<br>
+ ✅ FROM 절<br>
+ ✅ WHERE 절<br>
+ ✅ HAVING 절<br>
+ ✅ ORDER BY 절<br>
+ ✅ INSERT문의 VALUES 절 <br>
+ ✅ UPDATE문의 SET 절<br>
+
+#### 서브 쿼리의 종류
+ - 동작하는 방식
+    - `비연관 서브쿼리` : 서브쿼리가 메인쿼리의 칼럼을 가지고 있지 않은 형태으 ㅣ서브쿼리. 메인쿼리에 값(서브쿼리가 실행된 결과)을 제공하기 위한 목적으로 사용
+    - `연관 서브쿼리`  : 서브쿼리가 메인쿼리 칼럼을 가지고 있는 형태의 서브쿼리이다. 일반적으로 메인쿼리가 먼저 수행되어 읽혀진 데이터를 서브쿼리에서 조건이 맞는지 확인하고자할 때 주로 사용된다.
+
+ - 반환되는 데이터 형태
+   - `Single Row 서브 쿼리` : 서브 쿼리 실행 결과가 1건 이하
+   - `Multi Row 서브 쿼리` : 서브 쿼리 실행 결과가 여러 건인 서브쿼리
+   - `Multi Column 서브 쿼리` : 서브쿼리 실행 결과가 여러 칼럼, 서브쿼리와 메인쿼리에서 비교하고자 하는 칼럼 개수와 칼럼의 위치가 동일해야 한다.
+
+### 1. 단일 행 서브쿼리
+ - `=`, `<`,`<=`, `>`, `>=`, `<>`
+```sql
+SELECT *
+FROM emp
+WHERE sal >=( SELECT AVG(sal)
+              FROM emp );
+```
+### 2. 다중 행 서브쿼리
+ - `IN`, `ALL`, `ANY`, `EXISTS`
+
+
+`IN` : 서브쿼리의 결과에 존재하는 임의의 값과 동일한 조건(OR)<br>
+`ALL` : 서브쿼리의 결과에 존재하는 모든 값을 만족하는 조건<br>
+`ANY` : 서브 쿼리 결과에 존재하는 어느 하나의 값이라도 만족하는 조건<br>
+`EXISTS` : 서브 쿼리 결과를 만족하는 값이 존재하는지 확인하는 조건을 의미, 조건을 만족하는 건이 여러 건이더라도 1건만 찾으면 더 이상 검색하지 않는다.
+```sql
+SELECT *
+FROM emp
+WHERE deptno IN ( SELECT deptno
+                  FROM emp
+                  GROUP BY deptno
+                  HAVING AVG(sal)>=1000);
+```
+
+### 3. 다중 칼럼 서브쿼리
+ - 서브쿼리의 결과로 여러 개의 칼럼이 반환되어 메인쿼리의 조건과 동시에 비교되는 것을 의미한다.
+```sql
+SELECT *
+FROM emp
+WHERE (ename, deptno) IN ( SELECT ename, deptno
+                           FROM emp
+                           WHERE ename LIKE 'S%');
+```
+
+### 4. 연관 서브쿼리
+ - 연관 서브쿼리(Correlated Subquery)는 서브쿼리 내에 미인쿼리 칼럼이 사용된 서브쿼리이다.
+ - `EXISTS` 서브쿼리는 항상 연관 서브쿼리로 사용된다.
+
+### 5. 그밖의 위치에서 사용하는 서브쿼리
+
+ - `SELECT` : 스칼라 서브쿼리(Scalar Subquery)
+   - 스칼라 서브쿼리란 `한 행, 한 칼럼`만을 반환하는 서브쿼리를 말한다.
+   - 2건 이상 반환하면 에러
+ - `FROM` : 인라인 뷰(Inline View)
+   - 마치 동적으로 생성된 테이블 처럼 사용 가능
+   - 일반적인 뷰를 정적 뷰(Static View), 인라인 뷰를 동적 뷰(Dynamic View)라고도 한다.
+   - 인라인 뷰에서는 ORDER BY절을 사용할 수 있다.
+ - 그 외에도 `HAVING`, `UDATE문의 SET`, `INSERT문의 VALUES`에서 사용가능하다.
+
+### 6. 뷰(View)
+ - 테이블은 실제 데이터를 가지고 있는 반면 뷰는 실제 데이터를 가지고 있지 않다. 뷰는 단지 뷰 정의(View Definition)만을 가지고 있다.
+ - 질의에서 뷰가 사용돠ㅣ면 뷰 정의를 참조해서 DBMS 내부적으로 질의를 재작성(Rewirte)하여 질의를 수행한다.
+ - 뷰는 실제 데이터를 가지고 있지 않지만 테이블이 수행하는 역할을 수행하기 때문에 가상 테이블(Virtual Table)이라고도 한다.
+
+#### 뷰의 장점
+ - `독립성` : 테이블 구조가 변경되어도 뷰를 사용하는 응용 프로그램은 변경하지 않아도 된다.
+ - `편리성` : 복잡한 질의를 뷰로 생성하믕로써 관련 질의를 단순하게 작성할 수 있다. 또한 해당 형태의 SQL문을 자주 사용할 때 뷰를 이용하면 편리하게 사용할 수 있다.
+ - `보안성` : 직원 급여정보와 같이 숨기고 싶은 정보가 존재한다면, 뷰를 생성할 때 해당 칼럼을 빼고 생성함으로써 사용자에게 정보를 감출 수 있다.
+
+뷰는 다음과 같이 `CREATE VIEW`문을 통해서 생성 가능하다.
+```sql
+CREATE VIEW V_PLAYER_TEAM AS
+SELECT P.PLAYER_NAME, P.POSITION, P.BACK_NO, P.TEAM_ID, T.TEAM_NAME
+FROM PLAYER P, TEAM T
+WHERE P.TEAM_ID = T.TEAM_ID;
+```
+뷰틑 테이블뿐만아니라 이미 존재하는 뷰를 참조해서도 생성할 수 있다.
+```sql
+CREATE VIEW V_PLAYER_TEAM_FILTER AS
+SELECT PLAYER_NAME, POSTION, BACK_NO, TEAM_NAME
+FROM V_PLAYER_TEAM
+WHERE POSTION IN ('GK', 'MF');
+```
+뷰를 제거하기 위해서는 아래 `DROP VIEW`문을 이용한다.
+```sql
+DROP VIEW V_PLAYER_TEAM;
+DROP VIEW V_PLAYER_TEAM_FILTER;
+```
+
 ---
