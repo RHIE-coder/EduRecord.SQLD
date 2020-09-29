@@ -616,3 +616,225 @@ FROM emp;
 RANGE UNBOUNDED PRECEDING :
 현재 행을 기준으로 파티션 내의 첫 번째 행까지의 범위를 지정한다.
 ```
+
+#### MAX 함수
+ - 사원들의 급여와 같은 매니저를 두고있는 사원들의 SALARY 중 최대값을 같이 구한다.
+```sql
+SELECT mgr, ename, sal, MAX(sal) OVER (PARTITION BY mgr) AS MGR_MAX
+FROM emp;
+```
+
+#### MIN 함수
+ - 사원들의 급여와 같은 매니저를 두고 있는 사원들을 입사일자를 기준으로 정렬하고 SALARY 최소값을 같이 구한다.
+```sql
+SELECT mgr, ename, hiredate, sal,
+       MIN(sal) OVER(PARTITION BY mgr ORDER BY hiredate) AS MGR_MIN
+FROM emp;
+```
+
+#### AVG 함수
+ - EMP 테이블에서 같은 메니저를 두고 있는 사원들의 평균 SALARY를 구하는데, 조건은 같은 매니저 내에서 자기 바로 앞의 사번과 바로 뒤의 사번인 직원만을 대상으로 한다.
+```sql
+SELECT mgr, ename, hiredate, sal,
+       ROUND(AVG(SAL) OVER(PARTITION BY mgr BY hiredate
+             ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING)) AS MGR_AVG
+FROM emp;
+
+ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING:
+현재 행을 기준으로 파티션 내에서 한 건, 현재 행, 뒤의 한 건을 범위로 지정한다.
+(ROWS는 현재 행의 앞뒤 건수를 말하는 것임)
+```
+
+#### COUNT 함수
+ - 사원들을 급여 기준으로 정렬하고, 본인의 급여보다 50이하가 적거나 150이하로 많은 급여를 받는 인원수를 출력하라.
+```sql
+SELECT ename, sal,
+       COUNT(*) OVER (ORDER BY sal
+       RANGE BETWEEN 50 PRECEDING AND 150 FOLLOWING) AS SIM_CNT
+FROM emp;
+```
+
+### 4. 그룹 내 행 순서 함수
+#### FIRST_VALUE 함수
+ - 부서별 직원들을 연봉이 높은 순서부터 정렬하고, 파티션 내에서 가장 먼저 나온 값을 출력한다.
+```sql
+SELECT deptno, ename, sal,
+       FIRST_VALUE(ename) OVER (PARTITION BY deptno ORDER BY sal DESC
+       ROWS UNBOUNDED PRECEDING) AS DEPT_RICH
+FROM emp;
+
+ROWS UNBOUNDED PRECEDING
+현재 행을 기준으로 파티션 내의 첫번째 행까지 범위를 지정한다.
+```
+
+#### LAST_VALUE 함수
+ - 부서별 직원들을 연봉이 높은 순서부터 정렬하고, 파티션 내에서 가장 마지막에 나온 값을 출력한다.
+```sql
+SELECT deptno, ename, sal,
+       LAST_VALUE(ename) OVER
+       (PARTITION BY deptno ORDER BY sal DESC
+        ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING) AS DEPT_POOR
+FROM emp;
+
+ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING;
+현재 행을 포함해서 파티션 내의 마지막 행까지 범위를 지정한다.
+```
+
+#### LAG 함수
+이 함수를 통해 파티션별 윈도우에서 이전 몇 번째 행의 값을 가져올 수 있다.
+ - 직원들을 입사일자가 빠른 기준을 정렬을하고 본인보다 입사일자가 한명 앞선 사원의 급여를 본인의 급여와 함께 출력한다.
+```sql
+SELECT ename, hiredate, sal, LAG(sal) OVER (ORDER BY hiredate) AS PREV_SAL
+FROM emp
+WHERE job = 'SALESMAN';
+```
+ - NULL을 다른 값으로
+```sql
+SELECT ename, hiredate, sal, 
+       LAG(sal, 2, 0) OVER (ORDER BY hiredate) AS PREV_SAL
+FROM emp
+WHERE job = 'SALESMAN';
+```
+
+####  LEAD 함수
+파티션별 윈도우에서 이후 몇 번째 행의 값을 가져올 수 있다.
+```sql
+SELECT ename, hiredate,
+       LEAD(hiredate, 1) OVER (ORDER BY hiredate) AS "NEXTHIRED"
+FROM emp;
+```
+
+### 5. 구룹 내 비율 함수
+#### RATIO_TO_REPORT 함수
+이 함수를 이용해 파티션 내 전체 SUM(칼럼)값에 대한 행별 칼럼값의 백분율을 소수점으로 구할 수 있다. 결과 값은 > 0 & <= 1의 범위를 가진다. 그리고 개별 RATIO의 합을 구하면 1이 된다.
+ - JOB이 SALESMAN인 사원들을 대상으로 전체 급여에서 본인이 차지하는 비율을 출력한다.
+```sql
+SELECT ename, sal, ROUND(RATIO_TO_REPORT(sal) OVER (), 2) AS R_R
+FROM emp
+WHERE job = 'SALESMAN';
+```
+
+#### PERCENT_RANK 함수
+파티션별 우디ㅗ우에서 제일 먼저 나오는 것을 0으로, 제일 늦게 나오는 것을 1로하여, 값이 아닌 행의 순서별 백분율을 구한다. 결과 값은 >= 0 & <= 1의 범위를 가진다.
+ - 같은 부서 소속 사원들의 집합에서 본인의 급여가 순서상 몇번째 위치쯤에 있는지 0과 1사이의 값으로 출력한다.
+```sql
+SELECT deptno, ename, sal,
+       PERCNET_RANK() OVER (PARTITION BY deptno ORDER BY sal DESC) AS P_R
+FROM emp;
+```
+
+#### CUME_DIST 함수
+파티션별 위도우의 전체 건수에서 현재 행보다 작거나 같은 건수에 대한 누적백분율을 구한다. 결과 값은 > 0 & <= 1의 범위를 가진다.
+ - 같은 부서 소속 사원들의 집합에서 본인의 급여가 누적 순서상 몇 번째 위치쯤에 있는지 0과 1사이의 값으로 출력한다.
+```sql
+SELECT deptno, ename, sal,
+       CUME_DIST() OVER (PARTITION BY deptno ORDER BY sal DESC) AS CUME_DIST
+FROM emp;
+```
+
+#### NTILE 함수
+파티션별 전체 건수를 ARGUMENT 값으로 N 등분한 결과를 구할 수 있다.
+ - 전체 사원을 급여가 높은 순서로 정렬하고, 급여를 기준으로 4개의 그룹을 분류한다.
+```sql
+SELECT ename, sal, NTILE(4) OVER(ORDER BY sal DESC) AS QUAR_TILE
+FROM emp;
+```
+
+---
+
+## 7절 : DCL(DATA CONTROL LANGUAGE)
+### 1. DCL 개요
+유저를 생성하고 권한을 제어할 수 있는 명령어
+
+### 2. 유저와 권한
+#### 유저 생성과 시스템 권한 부여
+유저를 생성하고 데이터베이스에 접속한다고해서 `테이블`, `뷰`,`인덱스`등과 같은 오브젝트(OBJECT)를 생성할 수 없다. 사용자가 실행하는 모든 DDL문장(CREATE, ALTER, DROP, RENAME 등)은 그에 해당하는 적절한 권한이 있어야만 문장을 실행할 수 있다.
+
+이러한 권한을 시스템 권한이라고 하며 약 100개 이상의 종류가 있다. 100개 이상의 시스템 권한을 일일이 사용자에게 설정하는 것은 너무 복잡하고, 특히 유저로부터 권한을 관리하기가 어렵다.
+
+그래서 ROLE을 이용하여 간편하고 쉽게 권한을 부여하게 된다. 
+```sql
+CONN SCOTT/TIGER
+
+CREATE USER PJS IDENTIFIED BY KOREA7;
+
+1행에 오류:
+ERROR: 권한이 불충분하다.
+```
+이때는 유저생성 권한(CREATE USER)을 부여하면 된다.
+```sql
+GRANT CREATE USER TO SCOTT;
+권한이 부여 되었다.
+```
+PJS 유저가 생성됐지만 아무런 권한도 부여받지 못하여 CREATE SESSION 권한이 없다는 오류가 발생한다.
+
+이때는 로그인을 할 수 있도록 CREATE SESSION 권한을 부여한다.
+```sql
+GRANT CREATE SESSION TO PJS;
+```
+PJS 유저는 테이블 생성 권한이 없다. 그러므로 CREATE TABLE 권한을 부여한다.
+```sql
+GRANT CREATE TABLE TO PJS;
+```
+이처럼 많은 권한이 있다.
+```sql
+-- SCOTT에게 MENU 테이블에 대한 SELECT 권한을 준다.
+GRANT SELECT ON MENU TO SCOTT;
+```
+
+### 3. ROLE을 이용한 권한 부여
+앞서 본 것 처럼 기본적으로 CREATE SESSION, CREATE TABLE, CREATE PROCEDURE 등 많은 권한을 부여해야 한다.
+
+데이터베이스 관리자는 ROLE을 생성하고, ROLE에게 각종 권한들을 부여한 후 ROLE을 다른 ROLE이나 유저에게 부여할 수 있다. 이처럼 해당 ROLE만을 부여함으로써 빠르고 정확하게 필요한 권한을 부여할 수 있게 된다.
+
+ - PJS 유저에게 CREATE SESSION과 CREATE TABLE  권한을 가진 ROLE을 생성한 후 ROLE을 이용하여 다시 권한을 할당한다. 권한을 취소할 때는 `REVOKE`를 사용한다.
+
+```sql
+CONN SYSTEM/MANAGER;
+
+REVOKE CREATE SESSION, CREATE TABLE FROM PJS;
+
+CONN PJS/KOREA7;
+ERROR : 사용자는 CREATE SESSION권한을 가지고 있지않음. 로그인이 거절되었다.
+```
+
+```sql
+CREATE ROLE LOGIN_TABLE;
+롤이 생성되었다.
+
+GRANT CREATE SESSION, CREATE TABLE TO LOGIN_TABLE;
+권한이 부여되었다.
+
+GRANT LOGIN_TABLE TO PJS;
+권한이 부여되었다.
+
+CONN PJS/KOREA7
+연결되었다.
+
+CREATE TABLE menu2(
+  menu_seq NUBMER NOT NULL,
+  title VARCHAR2(10)
+);
+테이블이 생성되었다.
+```
+Oracle은 기본적으로 몇가지 ROLE을 제공하고 있다.
+ - `CONNECT`
+ - `RESOURCE`
+
+유저를 삭제하는 명령어는 DROP USER이고, CASCADE옵션을 주면 해당 유저가 생성한 오브젝트를 먼저 삭제한 후 유저를 삭제한다.
+```sql
+DROP USER PJS CASCADE;
+```
+
+## 8절 : 절차형 SQL
+
+### 1. 절차형 SQL 개요
+일반적인 개발 언어처럼 SQL에도 절차 지향적인 프로그램이 가능하도록 DBMS 벤더별로 PL(Procedural Langauge)/SQL(Oracle), SQL/PL(DB2), T-SQL(SQL Server) 등 절차형 SQL을 제공하고 있다.
+
+절차형 SQL을 이용하면 SQL문의 연속적인 실행이나 조건에 따른 분기처리를 이용하여 특정 기능을 수행하는 저장 모듈을 생성할 수 있다. 상세한 내역은 각 DBMS 벤더의 메뉴얼을 참조한다.
+
+ - PROCEDURE
+ - TRIGGER
+ - USER DEFINED FUNCTION
+
+[Oracle PL/SQL 메뉴얼](https://docs.oracle.com/database/121/LNPLS/toc.htm)
