@@ -390,3 +390,229 @@ DROP VIEW V_PLAYER_TEAM_FILTER;
 ```
 
 ---
+
+## 5절 : 그룹함수(GROUP FUNCTION)
+
+ANSI/ISO SQL 표준은 데이터분석을 위해서 다음 세가지 함수를 정의하고 있다.
+<br><br><br>
+
+ -  AGGREGATE FUNCTION
+
+GROUP AGGREGATE FUNCTION이라고도 부르며, GROUP FUNCTION의 한 부분으로 분류할 수 있다.
+
+`COUNT`, `SUM`, `AVG`, `MAX`, `MIN`
+<br><br><br>
+
+ - GROUP FUNCTION
+
+`ROLLUP은` GROUP BY의 확장된 형태로 사용하기가 쉬우며 병렬로 수행이 가능하기 때문에 매우 효과적일 뿐 아니라 시간 및 지역처럼 계층적 불류를 포함하고 있는 데이터의 집계에 적합하도록 되어 있음
+
+`CUBE는` 결합 가능한 모든 값에 대하여 다차원적인 집게를 생성하게 되므로 ROLLUP에 비해 다양한 데이터를 얻는 장점이 있는 반면에, 시스템에 부하를 많이 주는 단점이 있다.
+
+`GROUPING` SETS는 원하는 부분의 소계만 손쉽게 추출할 수 있는 장점이 있다.
+
+`ROLLUP, CUBE, GROUPING SETS` 결과에 대한 정렬이 필요한 경우는 ORDER BY 절에 정렬 칼럼을 명시하여야 한다.
+<br><br><br>
+
+ -  WINDOW FUNCTION
+
+분석 함수(ANALYTIC FUNCTION)나 순위 함수(RANK FUNCTION)로도 알려져 있는 윈도우 함수는 데이터 웨어하우스에서 발전한 기능
+
+### ROLLUP 함수
+#### 일반적인 GROUP BY 절 이용
+```sql
+SELECT dname, job, COUNT(*), SUM(sal)
+FROM emp, dept
+WHERE dept.deptno = emp.deptno
+GROUP BY dname, job;
+```
+
+#### GROUP BY + ORDER BY 절 사용
+```sql
+SELECT dname, job, COUNT(*), SUM(sal)
+FROM emp, dept
+WHERE dept.deptno = emp.deptno
+GROUP BY dname, job
+ORDER BY dname, job;
+```
+
+#### ROLLUP 함수 사용
+subtotal이 생기게 된다.
+```sql
+SELECT dname, job, COUNT(*), SUM(sal)
+FROM emp, dept
+WHERE dept.deptno = emp.deptno
+GROUP BY ROLLUP (dname, job)
+ORDER BY dname, job;
+```
+
+#### GROUPING함수 사용
+ROLLUP이나 CUBE에 의한 소계가 계산된 결과 컬럼(subtotal인 컬럼)에는 1이 표시됨. 이것을 이용해 문자열을 지정할 수 있음.
+```sql
+SELECT dname, GROUPING(dname), job, GROUPING(job), COUNT(*), SUM(sal)
+FROM emp, dept
+WHERE dept.deptno = emp.deptno
+GROUP BY ROLLUP (dname, job)
+ORDER BY dname, job;
+```
+GROUPING 결과에 따른 문자열 컨트롤하기
+```js
+SELECT CASE GROUPING(dname) WHEN 1 THEN 'All department' ELSE dname END AS depatment_name, 
+       CASE GROUPING(job) WHEN 1 THEN 'All job' ELSE job END AS job_name, 
+       COUNT(*) "total employee", 
+       SUM(sal) "total sales"
+FROM emp, dept
+WHERE dept.deptno = emp.deptno
+GROUP BY ROLLUP (dname, job)
+ORDER BY dname, job;
+```
+### CUBE 함수
+ROLLUP은 단지 가능한 subtotal들만 생성했지만 CUBE는 결합 가능한 모든 값에 대하여 다차원 집계를 생성한다.
+
+내부적으로 Grouping Columns의 순서를 바꾸어서 또 한번의 Query를 수행해야하고 Grand Total은 양쪽의 Query에서 모두 생성이 되므로 한번의 Query에서는 제거되어야만 하므로 ROLLUP에 비해 시스템 연산 대상이 많다.
+```sql
+SELECT CASE GROUPING(dname) WHEN 1 THEN 'All department' ELSE dname END AS depatment_name, 
+       CASE GROUPING(job) WHEN 1 THEN 'All job' ELSE job END AS job_name, 
+       COUNT(*) "total employee", 
+       SUM(sal) "total sales"
+FROM emp, dept
+WHERE dept.deptno = emp.deptno
+GROUP BY CUBE (dname, job)
+ORDER BY dname, job;
+```
+
+#### 왜 사용 하는가
+ex) CUBE 함수가 없다면?
+```sql
+SELECT dname, job, COUNT(*) "total employee", SUM(sal) "total sales"
+FROM emp, dept
+WHERE dept.deptno = emp.deptno
+GROUP BY dname, job
+UNION ALL
+SELECT dname, 'all job', COUNT(*) "total employee", SUM(sal) "total sales"
+FROM emp, dept
+WHERE dept.deptno = emp.deptno
+GROUP BY dname
+UNION ALL
+SELECT 'all department', job, COUNT(*) "total employee", SUM(sal) "total sales"
+FROM emp, dept
+WHERE dept.deptno = emp.deptno
+GROUP BY job
+UNION ALL
+SELECT 'all department', 'all job', COUNT(*) "total employee", SUM(sal) "total sales"
+FROM emp, dept
+WHERE dept.deptno = emp.deptno;
+```
+
+### GROUPING SETS 함수
+GROUPING SETS는 ROLLUP과 달리 인수의 순서가 바뀌어도 서로 평등한 관계이므로 결과가 같다.
+
+일반적인 함수를 사용한 sql
+ - 부서별, job별 인원수와 급여 합을 구하라
+```sql
+SELECT dname, 'all job', COUNT(*) "total employee", SUM(sal) "total sales"
+FROM emp, dept
+WHERE dept.deptno = emp.deptno
+GROUP BY dname
+UNION ALL
+SELECT 'all department', job, COUNT(*) "total employee", SUM(sal) "total sales"
+FROM emp, dept
+WHERE dept.deptno = emp.deptno
+GROUP BY job
+```
+GROUPING SETS 사용
+```sql
+SELECT CASE GROUPING(dname) WHEN 1 THEN 'All department' ELSE dname END AS depatment_name, 
+       CASE GROUPING(job) WHEN 1 THEN 'All job' ELSE job END AS job_name, 
+       COUNT(*) "total employee", 
+       SUM(sal) "total sales"
+FROM emp, dept
+WHERE dept.deptno = emp.deptno
+GROUP BY GROUPING SETS (dname, job)
+ORDER BY dname, job;
+```
+ - 부서-job-매니저 별 집계 + 부서-job별 집계, job-매니저별 집계를 GROUPING SETS 함수를 이용해서 구해보기
+```sql
+SELECT CASE GROUPING(dname) WHEN 1 THEN 'All department' ELSE dname END AS depatment_name, 
+       CASE GROUPING(job) WHEN 1 THEN 'All job' ELSE job END AS job_name, 
+       COUNT(*) "total employee", 
+       SUM(sal) "total sales"
+FROM emp, dept
+WHERE dept.deptno = emp.deptno
+GROUP BY GROUPING SETS ((dname, job, mgr),(dname, job),(job,mgr));
+```
+괄호로 묶은 집합을 볼 수 있는데, 이는 계층구조가 아닌 하나의 데이터로 간주한다.
+
+
+---
+
+## 6절 : 윈도우 함수(WINDOW FUNCTION)
+### 1. 개요
+기존 RDB는 칼럼과 칼럼간의 연산, 비교, 연결이나 집합에 대한 집계는 쉬우나, 행과 행간의 관계를 SQL문으로 처리하는 것이 매우 어려웠다. `PL/SQL`, `T-SQL`, `PRO*C`같은 절차형 프로그램을 작성하거나 INLINE VIEW를 이용해 복잡한 SQL문을 작성해야 하던 것을 부분적으로 행과 행간의 관계를 쉽게 정의하기 위해 만든 함수가 WINDOW 함수이다.
+
+윈도우 함수는 분석 함수나 순위 함수로 알려져 있다.
+
+윈도우 함수는 다른 함수와 달리 중첩(NEST)해서 사용할 수는 없지만 서브쿼리에서는 사용할 수 있다.
+
+#### 종류
+ 1. 그룹 내 순위(RANK) 관련 함수 : `RANK`, `DENSE_RANK`, `ROW_NUMBER`
+ 2. 그룹 내 집계(AGGREGATE) 관련 함수 : `SUM`,`MAX`, `MIN`, `AVG`, `COUNT`
+ 3. 그룹 내 행 순서 관련 함수 : `FIRST_VALUE`, `LAST_VALUE`, `LAG`, `LEAD`
+ 4. 그룹 내 비율 관련 함수 : `CUME_DIST`, `PERCENT_RANK`, `NTILE`, `RATIO_TO_REPORT`
+
+#### WINDOW FUNCTION SYNTAX
+ - WINDOW 함수에는 OVER 문구가 키워드로 필수 포함된다.
+```sql
+SELECT window_function (arguments) OVER
+([PARTITION BY 칼럼] [ORDER BY 절] [WINDOWING 절])
+FROM 테이블 명;
+```
+
+#??? WINDOWING 절 사용법을 모르겠다.
+
+### 2. 그룹 내 순위 함수
+
+#### RANK 함수
+RANK 함수는 ORDER BY를 포함한 QUERY문에서 특정 항목(칼럼)에 대한 순위를 구하는 ㅎ마수이다. 이때 특정 범위(PARTITION) 내에서 순위를 구할 수도 있고 전체 데이터에 대한 순위를 구할 수도 있다. 또 동일한 값에 대해서는 동일한 순위를 부여하게 된다.
+```sql
+SELECT job, ename, sal,
+       RANK() OVER(ORDER BY sal DESC) ALL_RANK,
+       RANK() OVER(PARTITION BY job ORDER BY sal DESC) JOB_RANK
+FROM emp;
+```
+
+#### DENSE_RANK 함수
+RANK와 흡사하나 동일한 순위를 하나의 건수로 취급하는 것이 틀린점이다.
+```sql
+SELECT job, ename, sal,
+       RANK() OVER(ORDER BY sal DESC) RANK,
+       DENSE_RANK() OVER(ORDER BY sal DESC) DENSE_RANK
+FROM emp;
+```
+
+#### ROW_NUMBER 함수
+동일한 값이라도 고유한 순위를 부여한다.
+```sql
+SELECT job, ename, sal,
+       RANK() OVER(ORDER BY sal DESC) RANK,
+       ROW_NUMBER() OVER(ORDER BY sal DESC) ROW_NUMBER
+FROM emp;
+```
+
+### 3. 일반 집계 함수
+#### SUM 함수
+ - 사원들의 급여와 같은 매니저를 두고 있는 사원들의 salary합을 구한다.
+```sql
+SELECT mgr, ename, sal, SUM(sal) OVER (PARTITION BY mgr) mgr_sum
+FROM emp;
+```
+
+  - OVER절 내에 ORDER BY 절을 추가해 파티션 내 데이터를 정렬하고 이전 salary데이터까지의 누적값을 출력한다.(SQL Server는 ORDER BY 절을 지원하지 않는다.)
+```sql
+SELECT mgr, ename, sal,
+       SUM(sal) OVER (PARTITION BY mgr ORDER BY sal RANGE UNBOUNDED PRECEDING)
+FROM emp;
+
+RANGE UNBOUNDED PRECEDING :
+현재 행을 기준으로 파티션 내의 첫 번째 행까지의 범위를 지정한다.
+```
