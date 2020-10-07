@@ -456,7 +456,7 @@ GROUP BY ROLLUP (dname, job)
 ORDER BY dname, job;
 ```
 GROUPING 결과에 따른 문자열 컨트롤하기
-```js
+```sql
 SELECT CASE GROUPING(dname) WHEN 1 THEN 'All department' ELSE dname END AS depatment_name, 
        CASE GROUPING(job) WHEN 1 THEN 'All job' ELSE job END AS job_name, 
        COUNT(*) "total employee", 
